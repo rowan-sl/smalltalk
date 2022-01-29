@@ -18,6 +18,7 @@ pub mod error {
     }
 }
 
+#[derive(Debug)]
 pub struct Writer<H, M, O>
 where
     O: bincode::Options + Clone,

@@ -1,7 +1,10 @@
+use std::fmt::Debug;
+
 use bytes::BytesMut;
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::{io::AsyncReadExt, net::tcp::OwnedReadHalf};
 
+#[derive(Debug, Clone, Copy)]
 enum ReaderState<H>
 where
     H: crate::header::IsHeader,
@@ -172,5 +175,23 @@ where
 
     pub fn into_socket(self) -> OwnedReadHalf {
         self.socket
+    }
+}
+
+impl<H, M, O> Debug for Reader<H, M, O>
+where
+    H: crate::header::IsHeader + Debug,
+    M: Serialize + DeserializeOwned + Debug,
+    O: bincode::Options,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Reader")
+            .field("socket", &self.socket)
+            .field("databuffer", &self.databuffer)
+            .field("state", &self.state)
+            .field("ready_messages", &self.ready_messages)
+            .field("serialization_settings", &"{ ... }")
+            .field("header_size", &self.header_size)
+            .finish()
     }
 }

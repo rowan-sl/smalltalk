@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, fmt::Debug};
 
 use bytes::{BufMut, Bytes};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -100,5 +100,17 @@ where
         NM: Serialize + Deserialize<'nde>,
     {
         Ok(MessageWrapper::new(options.deserialize(data)?))
+    }
+}
+
+impl<M, H> Debug for MessageWrapper<M, H>
+where
+    M: Serialize + Debug,
+    H: IsHeader + Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MessageWrapper")
+            .field("message", &self.inner)
+            .finish()
     }
 }
