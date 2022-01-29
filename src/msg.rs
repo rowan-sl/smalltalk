@@ -62,7 +62,7 @@ where
         &self.inner
     }
 
-    /// Mutable reference to the contained message.
+    /// MutaMessageWrapper<'de, M, H>le reference to the contained message.
     /// ## WARNING!
     /// if you serialized or retreived a header before doing this, it is now incorrect!
     pub fn message_mut(&mut self) -> &mut M {
@@ -71,6 +71,17 @@ where
 
     pub fn from_bytes<'nde, NH, NM>(
         data: &'nde Bytes,
+        options: impl bincode::Options,
+    ) -> Result<MessageWrapper<'nde, NM, NH>, bincode::Error>
+    where
+        NH: IsHeader,
+        NM: ?Sized + Serialize + Deserialize<'nde>
+    {
+        Ok(MessageWrapper::new(options.deserialize(data)?))
+    }
+
+    pub fn from_slice<'nde, NH, NM>(
+        data: &'nde [u8],
         options: impl bincode::Options,
     ) -> Result<MessageWrapper<'nde, NM, NH>, bincode::Error>
     where

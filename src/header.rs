@@ -1,8 +1,10 @@
+use std::fmt::Display;
+
 use bytes::{Bytes, BytesMut};
 
 /// Trait for methods that should be found on header implementations
 pub trait IsHeader {
-    type Error;
+    type Error: Display;
 
     /// Create a new header
     #[must_use]
@@ -35,6 +37,14 @@ pub trait IsHeader {
     /// This should do all necessary validation checks.
     #[must_use]
     fn from_bytes(bytes: Bytes) -> Result<Self, Self::Error>
+    where
+        Self: Sized;
+
+    /// See [`from_bytes`]
+    /// 
+    /// [`from_bytes`]: IsHeader::from_bytes
+    #[must_use]
+    fn from_slice(bytes: &[u8]) -> Result<Self, Self::Error>
     where
         Self: Sized;
 
