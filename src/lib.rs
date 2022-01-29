@@ -7,6 +7,8 @@ pub mod socket;
 pub use header::IsHeader;
 pub use msg::MessageWrapper;
 pub use socket::{Reader, Writer};
+pub use server::Server;
+pub use client::Client;
 
 /// Trait imports for smalltalk.
 ///
