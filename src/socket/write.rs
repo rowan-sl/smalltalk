@@ -46,7 +46,7 @@ where
     }
 
     /// Queues a message to be sent
-    /// 
+    ///
     /// # Errors
     /// if the mesage could not be serialized
     pub fn queue(
@@ -59,7 +59,7 @@ where
     }
 
     /// Writes stored data to the socket
-    /// 
+    ///
     /// # Errors
     /// If the socket has closed (returns Ok(0)) or if there was a error writing to the socket.
     pub async fn write(&mut self) -> Result<(), error::WriteError> {

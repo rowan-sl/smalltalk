@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, fmt::Debug};
+use std::{fmt::Debug, marker::PhantomData};
 
 use bytes::{BufMut, Bytes};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -27,7 +27,7 @@ where
     }
 
     /// Create a header of the contained message
-    /// 
+    ///
     /// # Errors
     /// if the wrappers message could not be serialized
     pub fn header(&self, options: impl bincode::Options) -> Result<impl IsHeader, bincode::Error> {
@@ -73,7 +73,7 @@ where
     }
 
     /// Attempts to deserialize a message from the provided data
-    /// 
+    ///
     /// # Errors
     /// if the message could not be deserialized
     pub fn from_bytes<NH, NM>(
@@ -88,7 +88,7 @@ where
     }
 
     /// Attempts to deserialize a message from the provided data
-    /// 
+    ///
     /// # Errors
     /// if the message could not be deserialized
     pub fn from_slice<'nde, NH, NM>(

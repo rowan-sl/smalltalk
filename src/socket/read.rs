@@ -122,7 +122,7 @@ where
     ///
     /// # Returns
     /// if there is a new message in the result queue or not
-    /// 
+    ///
     /// # Errors
     /// if the message or header could not be decoded
     pub async fn update(&mut self) -> Result<bool, error::UpdateError<H>> {

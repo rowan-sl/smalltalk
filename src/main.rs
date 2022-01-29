@@ -1,5 +1,6 @@
 pub mod header;
 pub mod msg;
+pub mod server;
 pub mod socket;
 
 pub use header::IsHeader;

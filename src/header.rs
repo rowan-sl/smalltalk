@@ -35,7 +35,7 @@ pub trait IsHeader {
 
     /// Create a new header, from some bytes.
     /// This should do all necessary validation checks.
-    /// 
+    ///
     /// # Errors
     /// if the header contained in `bytes` was invalid
     fn from_bytes(bytes: Bytes) -> Result<Self, Self::Error>
