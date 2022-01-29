@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use bytes::BytesMut;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 use tokio::{io::AsyncReadExt, net::tcp::OwnedReadHalf};
 
 enum SocketReaderState<H>
@@ -35,25 +35,25 @@ where
     MessageDeseri(#[from] bincode::Error),
 }
 
-pub struct SocketReader<'de, H, M, O>
+pub struct SocketReader<H, M, O>
 where
     H: crate::header::IsHeader,
-    M: ?Sized + Serialize + Deserialize<'de>,
+    M: Serialize,
     O: bincode::Options,
 {
     socket: OwnedReadHalf,
     databuffer: BytesMut,
     state: SocketReaderState<H>,
-    ready_messages: Vec<crate::msg::MessageWrapper<'de, M, H>>,
+    ready_messages: Vec<crate::msg::MessageWrapper<M, H>>,
     serialization_settings: O,
     /// convenience for `H::header_size()`
     header_size: usize,
 }
 
-impl<'de, H, M, O> SocketReader<'de, H, M, O>
+impl<H, M, O> SocketReader<H, M, O>
 where
     H: crate::header::IsHeader + Clone,
-    M: ?Sized + Serialize + Deserialize<'de>,
+    M: Serialize,
     O: bincode::Options + Clone,
 {
     pub fn new(socket: OwnedReadHalf, seri_settings: O) -> Self {
@@ -118,7 +118,10 @@ where
     /// a message is ready to be deserialized.
     ///
     /// returns if there is a new message in the result queue or not
-    pub async fn update(&'static mut self) -> Result<bool, SocketReaderUpdateError<H>> {
+    pub async fn update(&mut self) -> Result<bool, SocketReaderUpdateError<H>>
+    where
+        M: DeserializeOwned,
+    {
         match self.state {
             SocketReaderState::ProcessHeader => {
                 let header_dat = self.databuffer.split_to(self.header_size).freeze();
@@ -133,12 +136,11 @@ where
             SocketReaderState::ProcessMessage { ref header } => {
                 //TODO remove .expect()
                 let message_dat = self.databuffer.split_to(usize::try_from(header.size()).expect("Converted u64 to usize. if this fails, you are probably not on a 64 bit system and sending LARGE messages")).freeze();
-                let message: crate::msg::MessageWrapper<'de, M, H> =
-                    crate::msg::MessageWrapper::<'de, M, H>::new(
-                        self.serialization_settings
-                            .clone()
-                            .deserialize(&message_dat)?,
-                    );
+                let message: crate::msg::MessageWrapper<M, H> =
+                    crate::msg::MessageWrapper::<M, H>::from_owned_bytes(
+                        message_dat,
+                        self.serialization_settings.clone(),
+                    )?;
                 self.ready_messages.push(message);
                 Ok(true)
             }
@@ -149,7 +151,7 @@ where
         }
     }
 
-    pub fn get_ready_messages(&mut self) -> std::vec::Drain<crate::msg::MessageWrapper<'de, M, H>> {
+    pub fn get_ready_messages(&mut self) -> std::vec::Drain<crate::msg::MessageWrapper<M, H>> {
         self.ready_messages.drain(..)
     }
 

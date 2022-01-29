@@ -1,29 +1,27 @@
 use std::marker::PhantomData;
 
 use bytes::{BufMut, Bytes};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::header::IsHeader;
 
-pub struct MessageWrapper<'de, M, H>
+pub struct MessageWrapper<M, H>
 where
-    M: ?Sized + Serialize + Deserialize<'de>,
+    M: Serialize,
 {
     inner: M,
-    _deserialize_lifetime: PhantomData<&'de M>,
     _header_type: PhantomData<H>,
 }
 
-impl<'de, M, H> MessageWrapper<'de, M, H>
+impl<M, H> MessageWrapper<M, H>
 where
-    M: ?Sized + Serialize + Deserialize<'de>,
+    M: Serialize,
     H: IsHeader,
 {
     /// Creates a new message wrapper, around a message
     pub fn new(msg: M) -> Self {
         Self {
             inner: msg,
-            _deserialize_lifetime: PhantomData,
             _header_type: PhantomData,
         }
     }
@@ -72,21 +70,32 @@ where
     pub fn from_bytes<'nde, NH, NM>(
         data: &'nde Bytes,
         options: impl bincode::Options,
-    ) -> Result<MessageWrapper<'nde, NM, NH>, bincode::Error>
+    ) -> Result<MessageWrapper<NM, NH>, bincode::Error>
     where
         NH: IsHeader,
-        NM: ?Sized + Serialize + Deserialize<'nde>,
+        NM: Serialize + Deserialize<'nde>,
     {
         Ok(MessageWrapper::new(options.deserialize(data)?))
+    }
+
+    pub fn from_owned_bytes<NH, NM>(
+        data: Bytes,
+        options: impl bincode::Options,
+    ) -> Result<MessageWrapper<NM, NH>, bincode::Error>
+    where
+        NH: IsHeader,
+        NM: Serialize + DeserializeOwned,
+    {
+        Ok(MessageWrapper::new(options.deserialize(&data)?))
     }
 
     pub fn from_slice<'nde, NH, NM>(
         data: &'nde &[u8],
         options: impl bincode::Options,
-    ) -> Result<MessageWrapper<'nde, NM, NH>, bincode::Error>
+    ) -> Result<MessageWrapper<NM, NH>, bincode::Error>
     where
         NH: IsHeader,
-        NM: ?Sized + Serialize + Deserialize<'nde>,
+        NM: Serialize + Deserialize<'nde>,
     {
         Ok(MessageWrapper::new(options.deserialize(data)?))
     }
