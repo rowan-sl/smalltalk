@@ -20,3 +20,7 @@ bincode = "1.3.3"
 bytes = "1"
 async-trait = "0.1"
 thiserror = "1"
+
+[lib]
+name = "smalltalk"
+path = "src/lib.rs"

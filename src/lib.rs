@@ -17,5 +17,3 @@ pub use socket::{Reader, Writer};
 pub mod prelude {
     pub use crate::header::IsHeader as _smalltalk_IsHeader;
 }
-
-fn main() {}
