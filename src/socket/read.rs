@@ -118,8 +118,7 @@ where
     /// a message is ready to be deserialized.
     ///
     /// returns if there is a new message in the result queue or not
-    pub async fn update(&mut self) -> Result<bool, error::SocketReaderUpdateError<H>>
-    {
+    pub async fn update(&mut self) -> Result<bool, error::SocketReaderUpdateError<H>> {
         match self.state {
             SocketReaderState::ProcessHeader => {
                 let header_dat = self.databuffer.split_to(self.header_size).freeze();

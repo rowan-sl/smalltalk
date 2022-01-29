@@ -1,23 +1,22 @@
 use std::{collections::VecDeque, marker::PhantomData};
 
-use bytes::{Bytes, Buf};
+use bytes::{Buf, Bytes};
 use serde::{de::DeserializeOwned, Serialize};
-use tokio::{net::tcp::OwnedWriteHalf, io::AsyncWriteExt};
+use tokio::{io::AsyncWriteExt, net::tcp::OwnedWriteHalf};
 
 pub mod error {
     #[derive(Debug, thiserror::Error)]
     #[error("Failed to serialize message!\n{0}")]
-    pub struct SeriError (#[from] bincode::Error);
+    pub struct SeriError(#[from] bincode::Error);
 
     #[derive(Debug, thiserror::Error)]
     pub enum WriteError {
         #[error("Error while sending data!\n{0}")]
-        IOError (#[from] std::io::Error),
+        IOError(#[from] std::io::Error),
         #[error("Socket Closed!")]
         Disconnected,
     }
 }
-
 
 pub struct SocketWriter<H, M, O>
 where
@@ -44,9 +43,12 @@ where
         }
     }
 
-    pub fn queue(&mut self, message: crate::msg::MessageWrapper<M, H>) -> Result<(), error::SeriError> {
+    pub fn queue(
+        &mut self,
+        message: crate::msg::MessageWrapper<M, H>,
+    ) -> Result<(), error::SeriError> {
         let bytes = message.serialize(self.serialization_options.clone())?;
-        self.send_buffers.push_back(bytes);    
+        self.send_buffers.push_back(bytes);
         Ok(())
     }
 
@@ -64,8 +66,8 @@ where
                         Err(error::WriteError::Disconnected)
                     }
                 }
-                Ok(_n) => {Ok(())}
-                Err(e) => Err(e.into())
+                Ok(_n) => Ok(()),
+                Err(e) => Err(e.into()),
             }
         } else {
             Ok(())

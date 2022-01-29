@@ -3,8 +3,8 @@ pub mod msg;
 pub mod old;
 pub mod socket;
 
-pub use msg::MessageWrapper;
 pub use header::IsHeader;
+pub use msg::MessageWrapper;
 pub use socket::{SocketReader, SocketWriter};
 
 /// Trait imports for smalltalk.
