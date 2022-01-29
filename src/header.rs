@@ -40,14 +40,6 @@ pub trait IsHeader {
     where
         Self: Sized;
 
-    /// See [`from_bytes`]
-    /// 
-    /// [`from_bytes`]: IsHeader::from_bytes
-    #[must_use]
-    fn from_slice(bytes: &[u8]) -> Result<Self, Self::Error>
-    where
-        Self: Sized;
-
     /// size of the header. this should never change and is used to read the appropreate number of bytes when deserializing
     #[must_use]
     fn header_size() -> usize;

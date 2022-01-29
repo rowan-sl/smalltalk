@@ -1,13 +1,12 @@
 use std::fmt::Debug;
 
-use tokio::{net::tcp::OwnedReadHalf, io::AsyncReadExt};
-use serde::{Serialize, Deserialize};
 use bytes::BytesMut;
-
+use serde::{Deserialize, Serialize};
+use tokio::{io::AsyncReadExt, net::tcp::OwnedReadHalf};
 
 enum SocketReaderState<H>
 where
-    H: crate::header::IsHeader
+    H: crate::header::IsHeader,
 {
     Ready,
     ReadingHeader,
@@ -18,7 +17,7 @@ where
 
 impl<H> Default for SocketReaderState<H>
 where
-    H: crate::header::IsHeader
+    H: crate::header::IsHeader,
 {
     fn default() -> Self {
         Self::Ready
@@ -31,9 +30,9 @@ where
     H: crate::header::IsHeader,
 {
     #[error("Failed to parse header {0}")]
-    HeaderParser ( H::Error ),
+    HeaderParser(H::Error),
     #[error("Failed to deserialize message {0}")]
-    MessageDeseri ( #[from] bincode::Error ),
+    MessageDeseri(#[from] bincode::Error),
 }
 
 pub struct SocketReader<'de, H, M, O>
@@ -70,10 +69,10 @@ where
 
     /// attempts to read and store data. this does NOT attempt to read more than once,
     /// and does NOT process the data.
-    /// 
+    ///
     /// ## Cancelation Saftey
     /// this method IS cancelation safe. no data will be lost if it is canceled
-    /// 
+    ///
     /// ## Errors
     /// when the underlying socket.read() returns a io error
     pub async fn read(&mut self) -> std::io::Result<()> {
@@ -95,9 +94,16 @@ where
             }
             SocketReaderState::ReadingMessage { ref header } => {
                 //TODO make this not use .expect()
-                if self.databuffer.len() >= header.size().try_into().expect("Cannot convert u64 to usize, this is probably a 32bit system") {
+                if self.databuffer.len()
+                    >= header
+                        .size()
+                        .try_into()
+                        .expect("Cannot convert u64 to usize, this is probably a 32bit system")
+                {
                     // dun dun done
-                    self.state = SocketReaderState::ProcessMessage { header: header.clone() };
+                    self.state = SocketReaderState::ProcessMessage {
+                        header: header.clone(),
+                    };
                 }
             }
             _ => {}
@@ -107,35 +113,39 @@ where
     }
 
     /// Updates the reader.
-    /// 
+    ///
     /// does not read any bytes from the socket, but instead checks if
     /// a message is ready to be deserialized.
-    /// 
+    ///
     /// returns if there is a new message in the result queue or not
     pub async fn update(&'static mut self) -> Result<bool, SocketReaderUpdateError<H>> {
         match self.state {
             SocketReaderState::ProcessHeader => {
-                let header_dat = &self.databuffer[0..self.header_size];
-                //FIXME make it remove the used data
-                match H::from_slice(header_dat) {
+                let header_dat = self.databuffer.split_to(self.header_size).freeze();
+                match H::from_bytes(header_dat) {
                     Ok(header) => {
                         self.state = SocketReaderState::ReadingMessage { header };
                         Ok(false)
                     }
-                    Err(e) => {
-                        Err(SocketReaderUpdateError::HeaderParser(e))
-                    }
+                    Err(e) => Err(SocketReaderUpdateError::HeaderParser(e)),
                 }
             }
             SocketReaderState::ProcessMessage { ref header } => {
                 //TODO remove .expect()
-                let message_dat = &self.databuffer[0..usize::try_from(header.size()).expect("Converted u64 to usize. if this fails, you are probably not on a 64 bit system and sending LARGE messages")];
-                //FIXME make it remove the used data
-                let message: crate::msg::MessageWrapper<'de, M, H> = crate::msg::MessageWrapper::<'de, M, H>::from_slice(message_dat, self.serialization_settings.clone())?;
+                let message_dat = self.databuffer.split_to(usize::try_from(header.size()).expect("Converted u64 to usize. if this fails, you are probably not on a 64 bit system and sending LARGE messages")).freeze();
+                let message: crate::msg::MessageWrapper<'de, M, H> =
+                    crate::msg::MessageWrapper::<'de, M, H>::new(
+                        self.serialization_settings
+                            .clone()
+                            .deserialize(&message_dat)?,
+                    );
                 self.ready_messages.push(message);
                 Ok(true)
             }
-            _ => {/* ignore other things because they are related to processing messages */ Ok(false)}
+            _ => {
+                /* ignore other things because they are related to processing messages */
+                Ok(false)
+            }
         }
     }
 
@@ -161,4 +171,3 @@ where
         self.socket
     }
 }
-
