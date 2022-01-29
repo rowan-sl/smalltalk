@@ -5,6 +5,7 @@ edition = "2021"
 authors = ["Rowan S-L <rowan@fawkes.io>"]
 license = "GPL-3.0-only OR MIT"
 readme = "README.md"
+homepage = "https://github.com/rowan-sl/smalltalk/"
 repository = "https://github.com/rowan-sl/smalltalk/"
 description = "Utilities for speeding up development of simple networked applications"
 keywords = ["networking", "async", "tokio"]
