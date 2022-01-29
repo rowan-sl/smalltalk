@@ -1,9 +1,11 @@
 use std::net::SocketAddr;
+use std::fmt::Debug;
+use std::ops::{Deref, DerefMut};
 
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::net::{TcpListener, ToSocketAddrs};
 
-use crate::socket;
+use crate::socket::{self, interface::SocketUtils};
 
 pub mod error {
     #[derive(thiserror::Error, Debug)]
@@ -18,6 +20,54 @@ pub mod error {
         #[source]
         #[from]
         source: std::io::Error,
+    }
+}
+
+/// A connection to a client.
+/// 
+/// produced by the servers accept method
+pub struct ClientConnection<H, M, O>
+where
+    H: crate::header::IsHeader + Debug + Clone,
+    M: Serialize + DeserializeOwned,
+    O: bincode::Options + Clone,
+{
+    sock_interface: SocketUtils<H, M, O>
+}
+
+impl<H, M, O> ClientConnection<H, M, O>
+where
+    H: crate::header::IsHeader + Debug + Clone,
+    M: Serialize + DeserializeOwned,
+    O: bincode::Options + Clone,
+{
+    pub(crate) fn new(addr: SocketAddr, reader: socket::Reader<H, M, O>, writer: socket::Writer<H, M, O>) -> Self {
+        Self {
+            sock_interface: SocketUtils::new(reader, writer, addr)
+        }
+    }
+}
+
+impl<H, M, O> Deref for ClientConnection<H, M, O>
+where
+    H: crate::header::IsHeader + Debug + Clone,
+    M: Serialize + DeserializeOwned,
+    O: bincode::Options + Clone,
+{
+    type Target = SocketUtils<H, M, O>;
+    fn deref(&self) -> &Self::Target {
+        &self.sock_interface
+    }
+}
+
+impl<H, M, O> DerefMut for ClientConnection<H, M, O>
+where
+    H: crate::header::IsHeader + Debug + Clone,
+    M: Serialize + DeserializeOwned,
+    O: bincode::Options + Clone,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.sock_interface
     }
 }
 
@@ -57,16 +107,16 @@ where
     pub async fn accept<H, M>(
         &mut self,
     ) -> Result<
-        (SocketAddr, socket::Reader<H, M, O>, socket::Writer<H, M, O>),
+        ClientConnection<H, M, O>,
         error::AcceptConnectionError,
     >
     where
-        H: crate::header::IsHeader + Clone + Send,
+        H: crate::header::IsHeader + Clone + Send + Debug,
         M: Serialize + DeserializeOwned + Send,
     {
         let conn = self.listener.accept().await?;
         let (read_half, write_half) = socket::split_stream(conn.0, self.bincode_options.clone());
-        Ok((conn.1, read_half, write_half))
+        Ok(ClientConnection::new(conn.1, read_half, write_half))
     }
 
     pub fn as_listener(&self) -> &TcpListener {
