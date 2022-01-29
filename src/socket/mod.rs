@@ -4,14 +4,14 @@ pub mod write;
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::net::TcpStream;
 
-pub use read::SocketReader;
-pub use write::SocketWriter;
+pub use read::Reader;
+pub use write::Writer;
 
-/// Splits a `TcpStream` into a `SocketReader` and `SocketWriter`
+/// Splits a `TcpStream` into a `Reader` and `Writer`
 pub fn split_stream<H, M, O>(
     stream: TcpStream,
     seri_opt: O,
-) -> (SocketReader<H, M, O>, SocketWriter<H, M, O>)
+) -> (Reader<H, M, O>, Writer<H, M, O>)
 where
     H: crate::header::IsHeader + Clone,
     M: Serialize + DeserializeOwned,
@@ -19,16 +19,18 @@ where
 {
     let (read_half, write_half) = stream.into_split();
     (
-        SocketReader::new(read_half, seri_opt.clone()),
-        SocketWriter::new(write_half, seri_opt),
+        Reader::new(read_half, seri_opt.clone()),
+        Writer::new(write_half, seri_opt),
     )
 }
 
-/// attempts to join a SocketReader and SocketWriter into a TcpStream,
-/// failing if they were not from the same stream originaly
+/// Attempts to join a `Reader` and `Writer` into a `TcpStream`
+/// 
+/// # Errors
+/// if the halfs did not originate from the same `TcpStream`
 pub fn join_stream<H, M, O>(
-    read_half: SocketReader<H, M, O>,
-    write_half: SocketWriter<H, M, O>,
+    read_half: Reader<H, M, O>,
+    write_half: Writer<H, M, O>,
 ) -> Result<TcpStream, tokio::net::tcp::ReuniteError>
 where
     H: crate::header::IsHeader + Clone,

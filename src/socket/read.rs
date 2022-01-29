@@ -2,7 +2,7 @@ use bytes::BytesMut;
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::{io::AsyncReadExt, net::tcp::OwnedReadHalf};
 
-enum SocketReaderState<H>
+enum ReaderState<H>
 where
     H: crate::header::IsHeader,
 {
@@ -13,7 +13,7 @@ where
     ProcessMessage { header: H },
 }
 
-impl<H> Default for SocketReaderState<H>
+impl<H> Default for ReaderState<H>
 where
     H: crate::header::IsHeader,
 {
@@ -24,7 +24,7 @@ where
 
 pub mod error {
     #[derive(thiserror::Error, Debug)]
-    pub enum SocketReaderUpdateError<H>
+    pub enum UpdateError<H>
     where
         H: crate::header::IsHeader,
     {
@@ -35,7 +35,7 @@ pub mod error {
     }
 }
 
-pub struct SocketReader<H, M, O>
+pub struct Reader<H, M, O>
 where
     H: crate::header::IsHeader,
     M: Serialize + DeserializeOwned,
@@ -43,14 +43,14 @@ where
 {
     socket: OwnedReadHalf,
     databuffer: BytesMut,
-    state: SocketReaderState<H>,
+    state: ReaderState<H>,
     ready_messages: Vec<crate::msg::MessageWrapper<M, H>>,
     serialization_settings: O,
     /// convenience for `H::header_size()`
     header_size: usize,
 }
 
-impl<H, M, O> SocketReader<H, M, O>
+impl<H, M, O> Reader<H, M, O>
 where
     H: crate::header::IsHeader + Clone,
     M: Serialize + DeserializeOwned,
@@ -60,7 +60,7 @@ where
         Self {
             socket,
             databuffer: BytesMut::new(),
-            state: Default::default(),
+            state: ReaderState::default(),
             ready_messages: vec![],
             serialization_settings: seri_settings,
             header_size: H::header_size(),
@@ -83,16 +83,16 @@ where
         // like ProcessHeader, once it receives enough data
         // processing stages are dealt with elsewhere
         match self.state {
-            SocketReaderState::Ready => {
-                self.state = SocketReaderState::ReadingHeader;
+            ReaderState::Ready => {
+                self.state = ReaderState::ReadingHeader;
             }
-            SocketReaderState::ReadingHeader => {
+            ReaderState::ReadingHeader => {
                 if self.databuffer.len() >= self.header_size {
                     // we art r e a d y
-                    self.state = SocketReaderState::ProcessHeader;
+                    self.state = ReaderState::ProcessHeader;
                 }
             }
-            SocketReaderState::ReadingMessage { ref header } => {
+            ReaderState::ReadingMessage { ref header } => {
                 //TODO make this not use .expect()
                 if self.databuffer.len()
                     >= header
@@ -101,7 +101,7 @@ where
                         .expect("Cannot convert u64 to usize, this is probably a 32bit system")
                 {
                     // dun dun done
-                    self.state = SocketReaderState::ProcessMessage {
+                    self.state = ReaderState::ProcessMessage {
                         header: header.clone(),
                     };
                 }
@@ -117,25 +117,29 @@ where
     /// does not read any bytes from the socket, but instead checks if
     /// a message is ready to be deserialized.
     ///
-    /// returns if there is a new message in the result queue or not
-    pub async fn update(&mut self) -> Result<bool, error::SocketReaderUpdateError<H>> {
+    /// # Returns
+    /// if there is a new message in the result queue or not
+    /// 
+    /// # Errors
+    /// if the message or header could not be decoded
+    pub async fn update(&mut self) -> Result<bool, error::UpdateError<H>> {
         match self.state {
-            SocketReaderState::ProcessHeader => {
+            ReaderState::ProcessHeader => {
                 let header_dat = self.databuffer.split_to(self.header_size).freeze();
                 match H::from_bytes(header_dat) {
                     Ok(header) => {
-                        self.state = SocketReaderState::ReadingMessage { header };
+                        self.state = ReaderState::ReadingMessage { header };
                         Ok(false)
                     }
-                    Err(e) => Err(error::SocketReaderUpdateError::HeaderParser(e)),
+                    Err(e) => Err(error::UpdateError::HeaderParser(e)),
                 }
             }
-            SocketReaderState::ProcessMessage { ref header } => {
+            ReaderState::ProcessMessage { ref header } => {
                 //TODO remove .expect()
                 let message_dat = self.databuffer.split_to(usize::try_from(header.size()).expect("Converted u64 to usize. if this fails, you are probably not on a 64 bit system and sending LARGE messages")).freeze();
                 let message: crate::msg::MessageWrapper<M, H> =
-                    crate::msg::MessageWrapper::<M, H>::from_owned_bytes(
-                        message_dat,
+                    crate::msg::MessageWrapper::<M, H>::from_bytes(
+                        &message_dat,
                         self.serialization_settings.clone(),
                     )?;
                 self.ready_messages.push(message);
@@ -148,21 +152,21 @@ where
         }
     }
 
-    pub fn get_ready_messages(&mut self) -> std::vec::Drain<crate::msg::MessageWrapper<M, H>> {
+    pub fn ready_messages(&mut self) -> std::vec::Drain<crate::msg::MessageWrapper<M, H>> {
         self.ready_messages.drain(..)
     }
 
     pub fn clear_state(&mut self) {
         self.databuffer.clear();
-        self.state = Default::default();
+        self.state = ReaderState::default();
         self.ready_messages.clear();
     }
 
-    pub fn get_socket(&self) -> &OwnedReadHalf {
+    pub fn as_socket(&self) -> &OwnedReadHalf {
         &self.socket
     }
 
-    pub fn get_socket_mut(&mut self) -> &mut OwnedReadHalf {
+    pub fn as_socket_mut(&mut self) -> &mut OwnedReadHalf {
         &mut self.socket
     }
 

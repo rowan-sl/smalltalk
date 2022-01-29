@@ -8,7 +8,7 @@ readme = "README.md"
 repository = "https://github.com/rowan-sl/smalltalk/"
 description = "Utilities for simple networking with tokio"
 keywords = ["networking", "async", "tokio"]
-catagories = ["network-programming", "asynchronous"]
+categories = ["network-programming", "asynchronous"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

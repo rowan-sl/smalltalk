@@ -27,19 +27,24 @@ where
     }
 
     /// Create a header of the contained message
+    /// 
+    /// # Errors
+    /// if the wrappers message could not be serialized
     pub fn header(&self, options: impl bincode::Options) -> Result<impl IsHeader, bincode::Error> {
         Ok(H::new(options.serialized_size(&self.inner)?))
     }
 
     /// Serialize the contained message, but only that, do not include the header
+    #[allow(clippy::missing_errors_doc)]
     pub fn serialize_self(
         &self,
         options: impl bincode::Options,
     ) -> Result<Vec<u8>, bincode::Error> {
-        Ok(options.serialize(&self.inner)?)
+        options.serialize(&self.inner)
     }
 
     /// Serialize and combine the header and message
+    #[allow(clippy::missing_errors_doc)]
     pub fn serialize(
         &self,
         options: impl bincode::Options + Clone,
@@ -67,28 +72,25 @@ where
         &mut self.inner
     }
 
-    pub fn from_bytes<'nde, NH, NM>(
-        data: &'nde Bytes,
-        options: impl bincode::Options,
-    ) -> Result<MessageWrapper<NM, NH>, bincode::Error>
-    where
-        NH: IsHeader,
-        NM: Serialize + Deserialize<'nde>,
-    {
-        Ok(MessageWrapper::new(options.deserialize(data)?))
-    }
-
-    pub fn from_owned_bytes<NH, NM>(
-        data: Bytes,
+    /// Attempts to deserialize a message from the provided data
+    /// 
+    /// # Errors
+    /// if the message could not be deserialized
+    pub fn from_bytes<NH, NM>(
+        data: &Bytes,
         options: impl bincode::Options,
     ) -> Result<MessageWrapper<NM, NH>, bincode::Error>
     where
         NH: IsHeader,
         NM: Serialize + DeserializeOwned,
     {
-        Ok(MessageWrapper::new(options.deserialize(&data)?))
+        Ok(MessageWrapper::new(options.deserialize(data)?))
     }
 
+    /// Attempts to deserialize a message from the provided data
+    /// 
+    /// # Errors
+    /// if the message could not be deserialized
     pub fn from_slice<'nde, NH, NM>(
         data: &'nde &[u8],
         options: impl bincode::Options,
