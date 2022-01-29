@@ -1,3 +1,4 @@
+pub mod client;
 pub mod header;
 pub mod msg;
 pub mod server;

@@ -1,10 +1,10 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 use bytes::{Bytes, BytesMut};
 
 /// Trait for methods that should be found on header implementations
 pub trait IsHeader {
-    type Error: Display;
+    type Error: Debug + Display;
 
     /// Create a new header
     #[must_use]

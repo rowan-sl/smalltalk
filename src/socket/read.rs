@@ -159,6 +159,14 @@ where
         self.ready_messages.drain(..)
     }
 
+    pub fn latest_message(&mut self) -> Option<crate::msg::MessageWrapper<M, H>> {
+        if self.ready_messages.is_empty() {
+            None
+        } else {
+            Some(self.ready_messages.remove(0))
+        }
+    }
+
     pub fn clear_state(&mut self) {
         self.databuffer.clear();
         self.state = ReaderState::default();

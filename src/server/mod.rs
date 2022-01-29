@@ -17,10 +17,12 @@ pub mod error {
     pub struct AcceptConnectionError {
         #[source]
         #[from]
-        source: std::io::Error
+        source: std::io::Error,
     }
 }
 
+/// A Server wrapping a TcpListener,
+/// with utils for accepting new clients.
 pub struct Server<O>
 where
     O: bincode::Options + Clone,
@@ -35,10 +37,10 @@ where
 {
     /// Binds the server to the provided adress.
     /// The server does not listen for new connections imediataly, for that you need `.listen()`
-    /// 
+    ///
     /// The provided callback will be used when running the server,
     /// it is run in a new task, so it can be asynchronously blocking, although should not be non async blocking
-    /// 
+    ///
     /// # Errors
     /// if it could not sucessfully bind to the provided adress
     pub async fn bind<A: ToSocketAddrs>(
@@ -52,7 +54,12 @@ where
         })
     }
 
-    pub async fn accept<H, M>(&mut self) -> Result<(SocketAddr, socket::Reader<H, M, O>, socket::Writer<H, M, O>), error::AcceptConnectionError>
+    pub async fn accept<H, M>(
+        &mut self,
+    ) -> Result<
+        (SocketAddr, socket::Reader<H, M, O>, socket::Writer<H, M, O>),
+        error::AcceptConnectionError,
+    >
     where
         H: crate::header::IsHeader + Clone + Send,
         M: Serialize + DeserializeOwned + Send,
@@ -74,4 +81,3 @@ where
         self.listener
     }
 }
-
