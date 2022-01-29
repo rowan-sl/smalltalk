@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use bytes::BytesMut;
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::{io::AsyncReadExt, net::tcp::OwnedReadHalf};
@@ -24,21 +22,23 @@ where
     }
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum SocketReaderUpdateError<H>
-where
-    H: crate::header::IsHeader,
-{
-    #[error("Failed to parse header {0}")]
-    HeaderParser(H::Error),
-    #[error("Failed to deserialize message {0}")]
-    MessageDeseri(#[from] bincode::Error),
+pub mod error {
+    #[derive(thiserror::Error, Debug)]
+    pub enum SocketReaderUpdateError<H>
+    where
+        H: crate::header::IsHeader,
+    {
+        #[error("Failed to parse header {0}")]
+        HeaderParser(H::Error),
+        #[error("Failed to deserialize message {0}")]
+        MessageDeseri(#[from] bincode::Error),
+    }
 }
 
 pub struct SocketReader<H, M, O>
 where
     H: crate::header::IsHeader,
-    M: Serialize,
+    M: Serialize + DeserializeOwned,
     O: bincode::Options,
 {
     socket: OwnedReadHalf,
@@ -53,7 +53,7 @@ where
 impl<H, M, O> SocketReader<H, M, O>
 where
     H: crate::header::IsHeader + Clone,
-    M: Serialize,
+    M: Serialize + DeserializeOwned,
     O: bincode::Options + Clone,
 {
     pub fn new(socket: OwnedReadHalf, seri_settings: O) -> Self {
@@ -118,9 +118,7 @@ where
     /// a message is ready to be deserialized.
     ///
     /// returns if there is a new message in the result queue or not
-    pub async fn update(&mut self) -> Result<bool, SocketReaderUpdateError<H>>
-    where
-        M: DeserializeOwned,
+    pub async fn update(&mut self) -> Result<bool, error::SocketReaderUpdateError<H>>
     {
         match self.state {
             SocketReaderState::ProcessHeader => {
@@ -130,7 +128,7 @@ where
                         self.state = SocketReaderState::ReadingMessage { header };
                         Ok(false)
                     }
-                    Err(e) => Err(SocketReaderUpdateError::HeaderParser(e)),
+                    Err(e) => Err(error::SocketReaderUpdateError::HeaderParser(e)),
                 }
             }
             SocketReaderState::ProcessMessage { ref header } => {
